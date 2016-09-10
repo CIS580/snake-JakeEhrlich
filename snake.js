@@ -30,9 +30,26 @@ function gridSnap(pos, scale) {
   return [Math.floor(pos[0] / scale), Math.floor(pos[1] / scale)];
 }
 
+//http://stackoverflow.com/questions/3115982/how-to-check-if-two-arrays-are-equal-with-javascript
+function arraysEqual(a, b) {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  if (a.length != b.length) return false;
+
+  // If you don't care about the order of the elements inside
+  // the array, you should sort both arrays here.
+
+  for (var i = 0; i < a.length; ++i) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+
 /* Snake Game class: acts more or less as the model*/
 function SnakeGame(speed, scale, gridWidth, gridHeight) {
   this.dir = [1, 0];
+  this.turnQueue = [];
   this.speed = speed;
   this.scale = scale;
   this.gridW = gridWidth;
@@ -50,49 +67,73 @@ SnakeGame.prototype.addApple(x, y) {
   this.apples[[x, y]] = true;
 }
 SnakeGame.prototype.removeApple(x, y) {
-  this.apples[[x, y]] = false;
+  delete apples[[x, y]];
 }
 SnakeGame.prototype.isAppleAt(x, y){ 
-  return this.apples[[x, y]];
+  return !!this.apples[[x, y]];
 }
 SnakeGame.prototype.checkSelfCollide() {
   for(var i = 0; i < this.turnPoints.length - 1; ++i) {
     var p1 = gridSnap(this.turnPoints[i], this.scale);
     var p2 = gridSnap(this.turnPoints[i + 1], this.scale);
-    if(p1[0] == p2[0]) {
-      //check if [1]s are bunding
-    } else {
-      //assume 
-    }
+    var gp = this.gridPos();
+    var idx = +(p1[0] == p2[0]);
+    var hit = Math.min(p1[idx], p2[idx]) <= gp[idx] && gp[idx] >= Math.max(p1[idx], p2[idx]);
+    if(hit) return true;
   }
+  return false;
 }
 SnakeGame.prototype.checkOutOfBounds() {
-  //TODO: collide happens when grid position is outside of the grid
+  var gp = this.gridPos();
+  return gp[0] <= this.gridW && gp[1] <= this.gridH;
 }
 SnakeGame.prototype.gridPos() {
-  //TODO: return the grid position of the head
+  return gridSnap(this.pos(), this.scale);
 }
 SnakeGame.prototype.pos() {
-  //TODO: return head position
+  return [this.headX, this.headY];
 }
 SnakeGame.prototype.tailPos() {
-  //TODO: return tail position
+  return [this.tailX, this.tailY];
 }
 SnakeGame.prototype.setPos(x, y) {
-  //TODO: change head position
+  this.headX = x;
+  this.headY = y;
 }
 SnakeGame.prototype.setTailPos(x, y) {
-  //TODO: change tail position
+  this.tailX = x;
+  this.tailY = y;
 }
 SnakeGame.prototype.addTurn() {
-  //TODO: add a turning point at current grid location
+  this.turnPoints.push(this.gridPos());
 }
-SnakeGame.prototype.setDir(vert, horz) {
-  //TODO: change the pixel delta
+SnakeGame.prototype.addTurn(horz, vert) {
+  if(arraysEqual(this.dir, [horz, vert]) || arraysEqual(this.dir, [-horz, -vert])) return;
+  this.turns.push([horz, vert]);
 }
-SnakeGame.prototype.calculateMove() {
-  //TODO: using speed, delta, pos, gridPos
-  //check for grid collision and handle as needed
+SnakeGame.prototype.clearTurns() {
+  this.turns = [];
+}
+SnakeGame.prototype.move(dt) {
+  var gp = this.gridPos();
+  var center = [gp[0]*this.scale + this.scale/2, gp[1]*this.scale + this.scale/2];
+  var dx = this.dir[0]*this.speed*dt;
+  var dy = this.dir[0]*this.speed*dt;
+  var nextX = this.headX + dx;
+  var nextY = this.headY + dy;
+  var dist = dx + dy;
+  this.dir = this.turn.pop();
+  this.turn = [];
+  //if moving along x direction and went past turn point and need to turn
+  if(this.turn.length && dx !== 0 && Math.sign(center[0]-this.headX) != Math.sign(center[0]-nextX) {
+    var rem = dist - Math.Abs(center[0] - this.headX);
+    this.setPos(center[0], center[1] + this.dir[0]*(dist - dx));
+  }
+  //if moving along y direction and went past turn point and need to turn
+  if(this.turn.length && dy !== 0 && Math.sign(center[1]-this.headX) != Math.sign(center[1]-nextX) {
+    this.dir = this.turn.pop();
+    this.setPos(center[0] + (dist - dy));
+  }
 }
 
 
