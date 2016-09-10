@@ -6,7 +6,96 @@ backBuffer.width = frontBuffer.width;
 backBuffer.height = frontBuffer.height;
 var backCtx = backBuffer.getContext('2d');
 var oldTime = performance.now();
-var score = 0
+var scale = 10;
+//var gridWidth = Math.floor(frontBuffer.width / scale);
+//var gridHeight = Math.floor(frontBuffer.height / scale);
+
+/* Helper functions */
+
+//converts rectangular corrdinates to polar
+function toPolar(x, y) {
+  return [Math.sqrt(x*x + y*y), Math.atan2(y, x)];
+}
+
+//tweens a value a specified ratio between two values
+function tween(start, finish, by, mn, mx) {
+  //http://stackoverflow.com/questions/16201656/how-to-swap-two-variables-in-javascript
+  if(mx < mn) mn = [mx, mx = mn][0];
+  var diff = mx - mn
+  var prob = (by / diff)
+  return prob*start + (1-prob)*finish;
+}
+
+function gridSnap(pos, scale) {
+  return [Math.floor(pos[0] / scale), Math.floor(pos[1] / scale)];
+}
+
+/* Snake Game class: acts more or less as the model*/
+function SnakeGame(speed, scale, gridWidth, gridHeight) {
+  this.dir = [1, 0];
+  this.speed = speed;
+  this.scale = scale;
+  this.gridW = gridWidth;
+  this.gridH = gridHeight;
+  this.turnPoints = [];
+  this.score = [];
+  this.headX = 0;
+  this.headY = 0;
+  this.tailX = 0;
+  this.tailY = 0;
+  this.apples = {}; //dictionary to lookup and set apples
+  this.theta = 0;
+}
+SnakeGame.prototype.addApple(x, y) {
+  this.apples[[x, y]] = true;
+}
+SnakeGame.prototype.removeApple(x, y) {
+  this.apples[[x, y]] = false;
+}
+SnakeGame.prototype.isAppleAt(x, y){ 
+  return this.apples[[x, y]];
+}
+SnakeGame.prototype.checkSelfCollide() {
+  for(var i = 0; i < this.turnPoints.length - 1; ++i) {
+    var p1 = gridSnap(this.turnPoints[i], this.scale);
+    var p2 = gridSnap(this.turnPoints[i + 1], this.scale);
+    if(p1[0] == p2[0]) {
+      //check if [1]s are bunding
+    } else {
+      //assume 
+    }
+  }
+}
+SnakeGame.prototype.checkOutOfBounds() {
+  //TODO: collide happens when grid position is outside of the grid
+}
+SnakeGame.prototype.gridPos() {
+  //TODO: return the grid position of the head
+}
+SnakeGame.prototype.pos() {
+  //TODO: return head position
+}
+SnakeGame.prototype.tailPos() {
+  //TODO: return tail position
+}
+SnakeGame.prototype.setPos(x, y) {
+  //TODO: change head position
+}
+SnakeGame.prototype.setTailPos(x, y) {
+  //TODO: change tail position
+}
+SnakeGame.prototype.addTurn() {
+  //TODO: add a turning point at current grid location
+}
+SnakeGame.prototype.setDir(vert, horz) {
+  //TODO: change the pixel delta
+}
+SnakeGame.prototype.calculateMove() {
+  //TODO: using speed, delta, pos, gridPos
+  //check for grid collision and handle as needed
+}
+
+
 /**
  * @function loop
  * The main game loop.
@@ -19,7 +108,7 @@ function loop(newTime) {
   update(elapsedTime);
   render(elapsedTime);
 
-  // Flip the back buffer
+  // Flip the back buffer (I don't want to double buffer)
   frontCtx.drawImage(backBuffer, 0, 0);
 
   // Run the next loop
@@ -46,31 +135,44 @@ function update(elapsedTime) {
 
 }
 
+//used for debugging of the visual effects and movement
+function renderGrid(ctx, gridW, gridH, scale) {
+  for(var i = 0; i <= gridW; ++i) {
+    for(var j = 0; j <= gridH; ++j) {
 
-function renderHorzPath(upper, lower, res, start, finish) {
-  var step = (start - finish) / res;
-  for(var i = start; i < finish; i += step) {
-      frontCtx.beginPath();
-      frontCtx.moveTo(Math.round(i), Math.round(upper(i)));
-      frontCtx.lineTo(Math.round(i), Math.round(lower(i)));
-      frontCtx.stroke();
+    }
   }
 }
 
-function renderVertPath(left, right, res, start, finish) {
+function renderHorzPath(ctx, upper, lower, res, start, finish) {
   var step = (start - finish) / res;
   for(var i = start; i < finish; i += step) {
-      frontCtx.beginPath();
-      frontCtx.moveTo(Math.round(left(i)), Math.round(i));
-      frontCtx.lineTo(Math.round(right(i)), Math.round(i));
-      frontCtx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(Math.round(i), Math.round(upper(i)));
+      ctx.lineTo(Math.round(i), Math.round(lower(i)));
+      ctx.stroke();
   }
 }
 
-function renderPolorPath(lowerMag, upperMag, res, start, finish, xoff, yoff) {
+function renderVertPath(ctx, left, right, res, start, finish) {
+  var step = (start - finish) / res;
+  for(var i = start; i < finish; i += step) {
+      ctx.beginPath();
+      ctx.moveTo(Math.round(left(i)), Math.round(i));
+      ctx.lineTo(Math.round(right(i)), Math.round(i));
+      ctx.stroke();
+  }
+}
+
+function renderPolorPath(ctx, lowerMag, upperMag, res, start, finish, xoff, yoff) {
+  if(finish < start) start = [finish, finish = start][0];
   var step = Math.abs(finish - start) / res;
+  //TODO: vary the step size so that steps are smaller further away from orthogonal directions
+  //and less dense near orthgonal directions
+  //this should, with fewer lines, produce a better effect
+  //we basically have a sampeling problem
   for(var i = start; i < finish; i += step) {
-    frontCtx.beginPath();
+    ctx.beginPath();
     var lmag = lowerMag(i);
     var umag = upperMag(i);
     var xmod = Math.cos(i);
@@ -79,20 +181,28 @@ function renderPolorPath(lowerMag, upperMag, res, start, finish, xoff, yoff) {
     var ly = lmag*ymod;
     var ux = umag*xmod;
     var uy = umag*ymod;
-    frontCtx.moveTo(Math.round(lx + xoff), Math.round(ly + yoff));
-    frontCtx.lineTo(Math.round(ux + xoff), Math.round(uy + yoff));
-    frontCtx.stroke();
+    ctx.moveTo(Math.round(lx + xoff), Math.round(ly + yoff));
+    ctx.lineTo(Math.round(ux + xoff), Math.round(uy + yoff));
+    ctx.stroke();
   }
 }
 
-function toPolar(x, y) {
-  return [Math.sqrt(x*x + y*y), Math.atan2(y, x)];
-}
-
-function tween(start, finish, by, mn, mx) {
-  var diff = mx - mn
-  var prob = (by / diff)
-  return prob*start + (1-prob)*finish;
+//results undefined if lines are not pointing at same point of rotation
+function radialSweep(ctx, res, line1, line2, xoff, yoff) {
+  //convert lines to polar
+  bot1 = toPolar(line1[0][0], line1[0][1]);
+  bot2 = toPolar(line1[1][0], line1[1][1]);
+  top1 = toPolar(line2[0][0], line2[0][1]);
+  top2 = toPolar(line2[1][0], line2[1][1]);
+  //figure out the direction of the lines
+  botMin = Math.min(bot1[0], bot2[0]);
+  topMin = Math.min(top1[0], top2[0]);
+  topMax = Math.max(top1[0], top2[0]);
+  botMax = Math.max(bot1[0], bot2[0]);
+  renderPolorPath(ctx,
+    function(phi){return tween(botMin, topMin, phi, bot1[1], top1[1]);}, 
+    function(phi){return tween(botMax, topMax, phi, bot1[1], top1[1]);}, 
+    res, bot1[1], top1[1], xoff, yoff);
 }
 
 /**
@@ -106,20 +216,7 @@ function render(elapsedTime) {
   theta += 0.1 * elapsedTime;
   backCtx.clearRect(0, 0, backBuffer.width, backBuffer.height);
   frontCtx.clearRect(0, 0, backBuffer.width, backBuffer.height);
-  xoffset = 3*Math.cos(theta/33);
-  yoffset = 3*Math.sin(theta/33);
-  width = 30;
-  inradius = 30;
-  outradius = inradius + width;
-  botTop = toPolar(0, yoffset + inradius)[0];
-  botBot = toPolar(0, yoffset + outradius)[0];
-  topLeft = toPolar(xoffset + inradius, 0)[0];
-  topRight = toPolar(xoffset + outradius, 0)[0]
-  totalSweep = Math.PI/2;
-  renderPolorPath(
-    function(phi){return tween(botTop, topLeft, phi, 0, totalSweep);}, 
-    function(phi){return tween(botBot, topRight, phi, 0, totalSweep);}, 
-    100, 0.0, totalSweep, 50, 50);
+  radialSweep(frontCtx, 50, [[10,0],[30,0]], [[0,10],[0,30]], 50, 50);
 }
 
 /* Launch the game */
