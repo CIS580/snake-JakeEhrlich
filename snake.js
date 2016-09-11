@@ -44,6 +44,55 @@ function arraysEqual(a, b) {
   return true;
 }
 
+function addv(v1, v2) {
+  out = [];
+  for(var i = 0; i < Math.min(v1.length, v2.length); ++i) {
+    out.push(v1[i] + v2[i]);
+  }
+  return out;
+}
+
+function subv(v1, v2) {
+  out = [];
+  for(var i = 0; i < Math.min(v1.length, v2.length); ++i) {
+    out.push(v1[i] - v2[i]);
+  }
+  return out;
+}
+
+function smul(s, v) {
+  out = [];
+  for(var i = 0; i < v.length; ++i) {
+    out.push(s*v[i]);
+  }
+  return out;
+}
+
+function sadd(v, s) {
+  out = [];
+  for(var i = 0; i < v.length; ++i) {
+    out.push(s + v[i]);
+  }
+  return out;
+}
+
+function sum(v) {
+  out = 0;
+  for(var i = 0; i < v.length; ++i) {
+    out += v[i];
+  }
+  return out;
+}
+
+function mag(v) {
+  out = 0;
+  for(var i = 0; i < v.length; ++i) {
+    out += v[i]*v[i];
+  }
+  return Math.sqrt(out);
+}
+
+function eqv(v1, v2) { return arraysEqual(v1, v2); }
 
 /* Snake Game class: acts more or less as the model*/
 function SnakeGame(speed, growth, scale, gridWidth, gridHeight) {
@@ -56,10 +105,8 @@ function SnakeGame(speed, growth, scale, gridWidth, gridHeight) {
   this.gridH = gridHeight;
   this.turnPoints = [];
   this.score = [];
-  this.headX = scale/2;
-  this.headY = scale/2;
-  this.tailX = scale/2;
-  this.tailY = scale/2;
+  this.head = smul(scale/2, [1, 1]);
+  this.tail= smul(scale/2, [1, 1]);
   this.apples = {}; //dictionary to lookup and set apples
   this.theta = 0;
 }
@@ -88,60 +135,53 @@ SnakeGame.prototype.checkOutOfBounds = function() {
   return gp[0] <= this.gridW && gp[1] <= this.gridH;
 }
 SnakeGame.prototype.gridPos = function() {
-  return gridSnap(this.pos(), this.scale);
+  return gridSnap(this.head, this.scale);
 }
 SnakeGame.prototype.pos = function() {
-  return [this.headX, this.headY];
+  return this.head;
 }
 SnakeGame.prototype.tailPos = function() {
-  return [this.tailX, this.tailY];
+  return this.tail;
 }
-SnakeGame.prototype.setPos = function(x, y) {
-  this.headX = x;
-  this.headY = y;
+SnakeGame.prototype.setPos = function(pos) {
+  this.head = pos;
 }
-SnakeGame.prototype.setTailPos = function(x, y) {
-  this.tailX = x;
-  this.tailY = y;
+SnakeGame.prototype.setTailPos = function(pos) {
+  this.tail = pos;
 }
-SnakeGame.prototype.addTurn = function(horz, vert) {
-  if(Math.abs(this.dir[0]) == horz*horz || Math.abs(this.dir[1]) == vert) return;
-  this.turn = [[horz, vert]];
+SnakeGame.prototype.addTurn = function(newdir) {
+  if(eqv(this.dir, newdir) || eqv(this.dir, smul(-1, newdir))) return;
+  this.turn = [newdir];
 }
 SnakeGame.prototype.clearTurns = function() {
   this.turn = [];
 }
 //complicated way to ensure that we stay on the grid even though we're using continuous movement
-//this is actully all simple with a vector library
+//this is actully all simple with a vector library that I might add soon
 SnakeGame.prototype.move = function(dt) {
   var gp = this.gridPos();
   var dir = this.dir;
-  var center = [gp[0]*this.scale + this.scale/2, gp[1]*this.scale + this.scale/2];
-  var dx = dir[0]*this.speed*dt;
-  var dy = dir[1]*this.speed*dt;
-  var nextX = this.headX + dx;
-  var nextY = this.headY + dy;
-  var dist = dx + dy;
-  //if moving along x direction and went past turn point and need to turn
-  if(this.turn.length && dx !== 0 && Math.sign(center[0]-this.headX) != Math.sign(center[0]-nextX)
-  || this.turn.length && dy !== 0 && Math.sign(center[1]-this.headY) != Math.sign(center[1]-nextY)) {
-    this.turnPoints.push(gp);
+  var center = sadd(smul(this.scale, gp), this.scale/2);
+  var delta = smul(this.speed*dt, dir);
+  var next = addv(this.head, delta);
+  var cdist = mag(subv(center, this.head));
+  var ndist = mag(delta);
+  //move head snapping to center if need be
+  if(this.turn.length && cdist < ndist) {
+    this.turnPoints.push(center);
     this.dir = this.turn.pop();
-    this.setPos(center[0], center[1]);
+    this.setPos(center);
   } else {
-    this.headX = nextX;
-    this.headY = nextY;
+    this.head = next;
   }
   //now move the tail
-  var tp = this.turnPoints[0] || [(this.headX - this.scale/2)/this.scale, (this.headY - this.scale/2)/this.scale];
-  var tx = tp[0]*this.scale + this.scale/2;
-  var ty = tp[1]*this.scale + this.scale/2;
-  if(Math.abs(tx-this.tailX) + Math.abs(ty-this.tailY) > this.tailspeed*dt) {
-    this.tailY += Math.sign(ty - this.tailY)*this.tailspeed*dt;
-    this.tailX += Math.sign(tx - this.tailX)*this.tailspeed*dt;
+  var tp = this.turnPoints[0] || this.head;
+  var tdelta = subv(tp, this.tail);
+  var delta = smul(this.tailspeed*dt/mag(tdelta), tdelta);
+  if(mag(tdelta) > this.tailspeed*dt) {
+    this.tail = addv(this.tail, delta);
   } else {
-    this.tailX = tx;
-    this.tailY = ty;
+    this.tail = tp;
     this.turnPoints.shift();
   }
 }
@@ -156,10 +196,10 @@ snakeGame = new SnakeGame(0.1, 0.01, snakeGameScale,
 document.onkeydown = function(e) {
   e = e || window.event;
   switch(e.key) {
-    case 'ArrowUp':    snakeGame.addTurn(0, -1); break;
-    case 'ArrowDown':  snakeGame.addTurn(0,  1); break;
-    case 'ArrowRight': snakeGame.addTurn(1, 0); break;
-    case 'ArrowLeft':  snakeGame.addTurn(-1,  0); break;
+    case 'ArrowUp':    snakeGame.addTurn([0, -1]); break;
+    case 'ArrowDown':  snakeGame.addTurn([0,  1]); break;
+    case 'ArrowRight': snakeGame.addTurn([1,  0]); break;
+    case 'ArrowLeft':  snakeGame.addTurn([-1, 0]); break;
   }
 }
 
@@ -218,7 +258,8 @@ function renderGrid(ctx, gridW, gridH, scale) {
 }
 
 function renderHorzPath(ctx, upper, lower, res, start, finish) {
-  var step = (start - finish) / res;
+  if(finish < start) start = [finish, finish = start][0];
+  var step = Math.abs(start - finish) / res;
   for(var i = start; i < finish; i += step) {
       ctx.beginPath();
       ctx.moveTo(Math.round(i), Math.round(upper(i)));
@@ -228,7 +269,8 @@ function renderHorzPath(ctx, upper, lower, res, start, finish) {
 }
 
 function renderVertPath(ctx, left, right, res, start, finish) {
-  var step = (start - finish) / res;
+  if(finish < start) start = [finish, finish = start][0];
+  var step = Math.abs(start - finish) / res;
   for(var i = start; i < finish; i += step) {
       ctx.beginPath();
       ctx.moveTo(Math.round(left(i)), Math.round(i));
@@ -295,8 +337,30 @@ function render(elapsedTime) {
   theta += 0.1 * elapsedTime;
   backCtx.clearRect(0, 0, backBuffer.width, backBuffer.height);
   renderGrid(backCtx, snakeGame.gridW, snakeGame.gridH, snakeGame.scale);
-  renderCircle(backCtx, snakeGame.scale/2, snakeGame.headX, snakeGame.headY);
-  renderCircle(backCtx, snakeGame.scale/2, snakeGame.tailX, snakeGame.tailY);
+  renderCircle(backCtx, snakeGame.scale/2, snakeGame.head[0], snakeGame.head[1]);
+  renderCircle(backCtx, snakeGame.scale/2, snakeGame.tail[0], snakeGame.tail[1]);
+  var snakeRadius = 3;
+  for(var i = 0; i < snakeGame.turnPoints.length - 1; ++i) {
+    var p1 = snakeGame.turnPoints[i];
+    var p2 = snakeGame.turnPoints[i+1];
+    var delta = subv(p1, p2);
+    console.log(delta);
+    if(delta[0] == 0) {
+      renderVertPath(backCtx, 
+                     function(y) {return 3*Math.cos(y/10) + p1[0] - snakeRadius;}, 
+                     function(y) {return 3*Math.cos(y/10) + p1[0] + snakeRadius;},
+                     Math.floor(Math.abs(p1[1] - p2[1])), p1[1], p2[1]);
+    } else {
+      renderHorzPath(backCtx, 
+                     function(y) {return 3*Math.cos(y/10) + p1[1] - snakeRadius;}, 
+                     function(y) {return 3*Math.cos(y/10) + p1[1] + snakeRadius;},
+                     Math.floor(Math.abs(p1[0] - p2[0])), p1[0], p2[0]);
+    }
+                     
+  }
+  for(var i = 0; i < snakeGame.turnPoints.length; ++i) {
+    renderCircle(backCtx, snakeGame.scale/2, snakeGame.turnPoints[i][0], snakeGame.turnPoints[i][1]);
+  }
 }
 
 /* Launch the game */
