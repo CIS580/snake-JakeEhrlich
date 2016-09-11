@@ -195,12 +195,14 @@ snakeGame = new SnakeGame(0.1, 0.01, snakeGameScale,
 
 document.onkeydown = function(e) {
   e = e || window.event;
-  switch(e.key) {
+  switch(e.code) {
     case 'ArrowUp':    snakeGame.addTurn([0, -1]); break;
     case 'ArrowDown':  snakeGame.addTurn([0,  1]); break;
     case 'ArrowRight': snakeGame.addTurn([1,  0]); break;
     case 'ArrowLeft':  snakeGame.addTurn([-1, 0]); break;
+    case 'Space': snakeGame.speed = 0.0; snakeGame.tailspeed = 0.0; break;
   }
+  console.log(e);
 }
 
 /**
@@ -326,36 +328,36 @@ function radialSweep(ctx, res, line1, line2, xoff, yoff) {
     res, bot1[1], top1[1], xoff, yoff);
 }
 
+
+
 /**
   * @function render
   * Renders the current game state into a back buffer.
   * @param {elapsedTime} A DOMHighResTimeStamp indicting
   * the number of milliseconds passed since the last frame.
   */
-theta = 0.0
 function render(elapsedTime) {
-  theta += 0.1 * elapsedTime;
   backCtx.clearRect(0, 0, backBuffer.width, backBuffer.height);
   renderGrid(backCtx, snakeGame.gridW, snakeGame.gridH, snakeGame.scale);
   renderCircle(backCtx, snakeGame.scale/2, snakeGame.head[0], snakeGame.head[1]);
   renderCircle(backCtx, snakeGame.scale/2, snakeGame.tail[0], snakeGame.tail[1]);
   var snakeRadius = 3;
-  for(var i = 0; i < snakeGame.turnPoints.length - 1; ++i) {
-    var p1 = snakeGame.turnPoints[i];
-    var p2 = snakeGame.turnPoints[i+1];
+  var points = [snakeGame.tail].concat(snakeGame.turnPoints.concat([snakeGame.head]));
+  for(var i = 0; i < points.length - 1; ++i) {
+    var p1 = points[i];
+    var p2 = points[i+1];
     var delta = subv(p1, p2);
-    console.log(delta);
-    if(delta[0] == 0) {
+    //if(delta[0] == 0) {
       renderVertPath(backCtx, 
                      function(y) {return 3*Math.cos(y/10) + p1[0] - snakeRadius;}, 
                      function(y) {return 3*Math.cos(y/10) + p1[0] + snakeRadius;},
                      Math.floor(Math.abs(p1[1] - p2[1])), p1[1], p2[1]);
-    } else {
+    //} else {
       renderHorzPath(backCtx, 
-                     function(y) {return 3*Math.cos(y/10) + p1[1] - snakeRadius;}, 
-                     function(y) {return 3*Math.cos(y/10) + p1[1] + snakeRadius;},
+                     function(x) {return 3*Math.cos(x/10) + p2[1] - snakeRadius;}, 
+                     function(x) {return 3*Math.cos(x/10) + p2[1] + snakeRadius;},
                      Math.floor(Math.abs(p1[0] - p2[0])), p1[0], p2[0]);
-    }
+    //}
                      
   }
   for(var i = 0; i < snakeGame.turnPoints.length; ++i) {
